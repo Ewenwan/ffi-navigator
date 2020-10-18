@@ -5,7 +5,28 @@
 Most modern IDEs support find function definition within the same language(e.g. python or c++). However, it is very hard to do that for cross-language FFI calls. While solving this general problem can be very technically challenging, we can get around it by building a project-specific analyzer that matches the FFI registration code patterns and recovers the necessary information.
 
 This project is an example of that. Currently, it supports the PackedFunc FFI in the Apache TVM project. It is implemented as a [language server](https://microsoft.github.io/language-server-protocol/) that provides getDefinition function for FFI calls and returns the location of the corresponding C++ API in the TVM project. It complements the IDE tools that support navigation within the same language. We also have preliminary support for MXNet, DGL, and PyTorch, so we can do goto-definition from Python to C++ in these projects too.
+ 
+随着python的流行，需要为了支持效率的python项目都会有和互相调用c++的部分。 
+这个问题在像TVM这样的大项目里面都会存在。如何看项目代码就会成为大家都会问的问题。
+虽然大部分的IDE都会支持代码跳转功能，可以给定一个函数跳转到函数的定义或者找到函数本身的引用。
 
+这些功能都只存在于一种语言里面（python内部的跳转或者c++内部的跳转），一旦碰到了FFI调用IDE的跳转功能就不好用了。在过去的假期里面，我们开始思考如何帮助TVM社区解决这个问题，然后完成了一个有趣的插件。
+
+如何支持跨语言跳转分析通过一般的程序语言分析去解决跨越FFI跳转本身是一件很难的事情。既然这个一般的问题是比较困难的，我们可以想办法绕过这个问题。因为FFI本身的限制，每个项目一般会有自己的FFI规范。
+
+比如tvm在c++端注册函数的时候会采用**TVM_REGISTER_GLOBAL(“xyz.MyFunc”)**而通过在python端的xyz.py 里面的init_api(“xyz”)来暴露对应的函数。
+
+我们只要支持xyz.MyFunc到对应的c++跳转就可以了。
+
+所以我们的思路是避开程序分析，而直接采用针对每个项目FFI编写规范的模式匹配，去匹配对应的FFI注册函数和ffi调用函数，从而达到支持跳转的目的。
+
+Language Server Protocol有了基本思路，我们可以开始实现这个功能。一开始的时候我们打算直接实现一个vscode plugin。然后社区的小伙伴跑出来说我希望用emacs。是不是可以实现一个统一的插件来支持这个功能呢？经过搜索之后我们发现答案是肯定的。
+
+微软在开发vscode的过程中推出了一个叫language server protocol的规范（https://microsoft.github.io/language-server-protocol/） 大意是我们可以把IDE自动补全跳转等功能实现成一个json rpc server。
+
+然后各个IDE可以直接和这个language server交互从而获得这个功能。看到这里不禁感叹现代的IDE的abstraction decoupling已经好到这个程度。
+
+我们通过实现一个language server，就可以支持所有和LSP交互的IDE了。项目地址具体的效果如下（vscode），目前我们支持tvm项目中从c++和python之间的函数调用跳转以及类型object定义的跳转。除了tvm最近小伙伴还加入了对pytorch，mxnet，dgl的支持，有兴趣的同学也可以尝试一下。希望对大家开发有所帮助
 
 ## Installation
 
